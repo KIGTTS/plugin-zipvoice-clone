@@ -1,0 +1,23 @@
+{
+  "id": "engine.zipvoice-clone",
+  "name": "语音克隆引擎",
+  "version": "0.3.6",
+  "versionCode": 17,
+  "entryClass": "com.kigtts.clone.zipvoice.ZipVoicePlugin",
+  "apiVersion": 35,
+  "minSdk": 26,
+  "runtime": "android-dex",
+  "license": "MIT",
+  "capabilities": [
+    "tts",
+    "ui",
+    "voice-packs"
+  ],
+  "permissionPurposes": {
+    "tts": "使用内置模型和参考声音，在手机上离线合成朗读音频。",
+    "voice-packs": "导入、选择、管理、导出和分享用户的语音包。"
+  },
+  "icon": {
+    "symbol": "record_voice_over"
+  }
+}

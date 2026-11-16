@@ -1,0 +1,150 @@
+[
+  {
+    "group": "com.microsoft.onnxruntime",
+    "artifact": "onnxruntime-android",
+    "version": "1.29.0",
+    "dependencies": [],
+    "licenses": [
+      {
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT"
+      }
+    ],
+    "pomUrl": "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.29.0/onnxruntime-android-1.29.0.pom",
+    "aarUrl": "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.29.0/onnxruntime-android-1.29.0.aar",
+    "sha256": "e97540ca78fe36f6fe2013f82843414fb843b6c7681fb04644cba5e1406662dd",
+    "publishedChecksum": {
+      "algorithm": "sha1",
+      "value": "22c4a984c9c6f86c188b4d5ae792527db4527889",
+      "url": "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.29.0/onnxruntime-android-1.29.0.aar.sha1"
+    },
+    "bytes": 51897836,
+    "localPath": "C:\\Users\\LHT02\\Documents\\Codex\\2026-11-06\\task\\KIGTTS-Clone-Plugins\\qualcomm\\downloads\\com.microsoft.onnxruntime-onnxruntime-android-1.29.0\\onnxruntime-android-1.29.0.aar",
+    "files": [
+      "META-INF/",
+      "META-INF/com/",
+      "META-INF/com/android/",
+      "META-INF/com/android/build/",
+      "META-INF/com/android/build/gradle/",
+      "headers/",
+      "jni/",
+      "jni/arm64-v8a/",
+      "jni/armeabi-v7a/",
+      "jni/x86/",
+      "jni/x86_64/",
+      "AndroidManifest.xml",
+      "META-INF/com/android/build/gradle/aar-metadata.properties",
+      "R.txt",
+      "classes.jar",
+      "headers/cpu_provider_factory.h",
+      "headers/nnapi_provider_factory.h",
+      "headers/onnxruntime_c_api.h",
+      "headers/onnxruntime_cxx_api.h",
+      "headers/onnxruntime_cxx_inline.h",
+      "headers/onnxruntime_env_config_keys.h",
+      "headers/onnxruntime_ep_c_api.h",
+      "headers/onnxruntime_ep_device_ep_metadata_keys.h",
+      "headers/onnxruntime_error_code.h",
+      "headers/onnxruntime_experimental_c_api.h",
+      "headers/onnxruntime_experimental_c_api.inc",
+      "headers/onnxruntime_experimental_cxx_api.h",
+      "headers/onnxruntime_float16.h",
+      "headers/onnxruntime_lite_custom_op.h",
+      "headers/onnxruntime_run_options_config_keys.h",
+      "headers/onnxruntime_session_options_config_keys.h",
+      "headers/webgpu_provider_factory.h",
+      "jni/arm64-v8a/libonnxruntime.so",
+      "jni/arm64-v8a/libonnxruntime4j_jni.so",
+      "jni/armeabi-v7a/libonnxruntime.so",
+      "jni/armeabi-v7a/libonnxruntime4j_jni.so",
+      "jni/x86/libonnxruntime.so",
+      "jni/x86/libonnxruntime4j_jni.so",
+      "jni/x86_64/libonnxruntime.so",
+      "jni/x86_64/libonnxruntime4j_jni.so",
+      "proguard.txt"
+    ]
+  },
+  {
+    "group": "com.qualcomm.qti",
+    "artifact": "onnxruntime-android-qnn",
+    "version": "2.7.0",
+    "dependencies": [],
+    "licenses": [
+      {
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT"
+      }
+    ],
+    "pomUrl": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/onnxruntime-android-qnn/2.7.0/onnxruntime-android-qnn-2.7.0.pom",
+    "aarUrl": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/onnxruntime-android-qnn/2.7.0/onnxruntime-android-qnn-2.7.0.aar",
+    "sha256": "ecd36df222e2a947ceb13bdd6fec181d1f1841b40379e21ce519830f2fbd562a",
+    "publishedChecksum": {
+      "algorithm": "sha1",
+      "value": "7630e93b1f40db42de7f0800fbea724df0a19c51",
+      "url": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/onnxruntime-android-qnn/2.7.0/onnxruntime-android-qnn-2.7.0.aar.sha1"
+    },
+    "bytes": 1663668,
+    "localPath": "C:\\Users\\LHT02\\Documents\\Codex\\2026-11-06\\task\\KIGTTS-Clone-Plugins\\qualcomm\\downloads\\com.qualcomm.qti-onnxruntime-android-qnn-2.7.0\\onnxruntime-android-qnn-2.7.0.aar",
+    "files": [
+      "R.txt",
+      "AndroidManifest.xml",
+      "classes.jar",
+      "META-INF/com/android/build/gradle/aar-metadata.properties",
+      "jni/",
+      "jni/arm64-v8a/",
+      "jni/arm64-v8a/libonnxruntime_providers_qnn.so"
+    ]
+  },
+  {
+    "group": "com.qualcomm.qti",
+    "artifact": "qnn-runtime",
+    "version": "2.51.0",
+    "dependencies": [],
+    "licenses": [
+      {
+        "name": "Qualcomm AI Hub Model License",
+        "url": "https://softwarecenter.qualcomm.com/api/download/software/licenses/ai_model_hub/v1/LICENSE.pdf"
+      }
+    ],
+    "pomUrl": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/qnn-runtime/2.51.0/qnn-runtime-2.51.0.pom",
+    "aarUrl": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/qnn-runtime/2.51.0/qnn-runtime-2.51.0.aar",
+    "sha256": "6388face1d5aa5e8958d745e5a547e92b5bec6fc332dfb1b438b1e17ffa02861",
+    "publishedChecksum": {
+      "algorithm": "sha1",
+      "value": "f3d9f398a405bd959b1c3afba7e754068a30f3b1",
+      "url": "https://repo.maven.apache.org/maven2/com/qualcomm/qti/qnn-runtime/2.51.0/qnn-runtime-2.51.0.aar.sha1"
+    },
+    "bytes": 75297348,
+    "localPath": "C:\\Users\\LHT02\\Documents\\Codex\\2026-11-06\\task\\KIGTTS-Clone-Plugins\\qualcomm\\downloads\\com.qualcomm.qti-qnn-runtime-2.51.0\\qnn-runtime-2.51.0.aar",
+    "files": [
+      "R.txt",
+      "AndroidManifest.xml",
+      "classes.jar",
+      "jni/",
+      "jni/arm64-v8a/",
+      "jni/arm64-v8a/libQnnDsp.so",
+      "jni/arm64-v8a/libQnnDspV66Skel.so",
+      "jni/arm64-v8a/libQnnDspV66Stub.so",
+      "jni/arm64-v8a/libQnnGpu.so",
+      "jni/arm64-v8a/libQnnHtp.so",
+      "jni/arm64-v8a/libQnnHtpPrepare.so",
+      "jni/arm64-v8a/libQnnHtpV68Skel.so",
+      "jni/arm64-v8a/libQnnHtpV68Stub.so",
+      "jni/arm64-v8a/libQnnHtpV69Skel.so",
+      "jni/arm64-v8a/libQnnHtpV69Stub.so",
+      "jni/arm64-v8a/libQnnHtpV73Skel.so",
+      "jni/arm64-v8a/libQnnHtpV73Stub.so",
+      "jni/arm64-v8a/libQnnHtpV75Skel.so",
+      "jni/arm64-v8a/libQnnHtpV75Stub.so",
+      "jni/arm64-v8a/libQnnHtpV79Skel.so",
+      "jni/arm64-v8a/libQnnHtpV79Stub.so",
+      "jni/arm64-v8a/libQnnHtpV81Skel.so",
+      "jni/arm64-v8a/libQnnHtpV81Stub.so",
+      "jni/arm64-v8a/libQnnSystem.so",
+      "META-INF/com/android/build/gradle/aar-metadata.properties",
+      "arm64-v8a/",
+      "NOTICE.txt",
+      "LICENSE.pdf"
+    ]
+  }
+]
