@@ -21,16 +21,16 @@ internal fun copyVoiceAvatar(input: File, output: File) {
 }
 
 internal fun validateVoiceAvatar(file: File) {
-    require(file.isFile && file.length() in 45..2L * 1024 * 1024) { "头像图片无效或过大" }
+    require(file.isFile && file.length() in 45..2L * 1024 * 1024) { throw CloneMessageException("voice.avatar_invalid", "头像图片无效或过大") }
     RandomAccessFile(file, "r").use {
         require(it.readLong() == 0x89504e470d0a1a0aUL.toLong() && it.readInt() == 13 &&
-            it.readInt() == 0x49484452) { "语音包头像必须是 PNG" }
-        require(it.readInt() in 1..2048 && it.readInt() in 1..2048) { "头像尺寸无效" }
+            it.readInt() == 0x49484452) { throw CloneMessageException("voice.avatar_png", "语音包头像必须是 PNG") }
+        require(it.readInt() in 1..2048 && it.readInt() in 1..2048) { throw CloneMessageException("voice.avatar_dimensions", "头像尺寸无效") }
     }
 }
 
 internal data class ExportedVoice(val path: String, val name: String) {
-    fun outcome(owner: String) = PluginOutcome.ExportResource("导出语音包", PluginResource(path, owner),
+    fun outcome(owner: String, copy: CloneCopy = CloneCopy()) = PluginOutcome.ExportResource(copy("voice.export", "导出语音包"), PluginResource(path, owner),
         name, "application/zip", temporary = true)
 }
 

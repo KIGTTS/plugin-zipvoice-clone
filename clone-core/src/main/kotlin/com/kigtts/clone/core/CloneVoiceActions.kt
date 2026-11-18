@@ -12,23 +12,23 @@ internal class CloneVoiceActions(
     private val inbox = "imports/voice-clone-inbox"
     private val wavTypes = listOf("audio/wav", "audio/x-wav", "application/octet-stream")
 
-    suspend fun execute(action: String, context: PluginContext): PluginOutcome? {
+    suspend fun execute(action: String, context: PluginContext, copy: CloneCopy = CloneCopy()): PluginOutcome? {
         val value = context.inputs["value"].orEmpty()
         val id = action.substringAfter('/', "")
         val refresh = PluginOutcome.RefreshUi
         return when (action.substringBefore('/')) {
-            "new-pack", "add-voice" -> PluginOutcome.ImportResource("选择参考 WAV", inbox, "wav-imported", mimeTypes = wavTypes)
-            "import-pack" -> PluginOutcome.ImportResource("导入语音包 ZIP", inbox, "pack-imported",
+            "new-pack", "add-voice" -> PluginOutcome.ImportResource(copy("voice.pick_wav", "选择参考 WAV"), inbox, "wav-imported", mimeTypes = wavTypes)
+            "import-pack" -> PluginOutcome.ImportResource(copy("voice.import_zip", "导入语音包 ZIP"), inbox, "pack-imported",
                 mimeTypes = listOf("application/zip", "application/octet-stream"))
             "pack-imported" -> { fromInbox(context) { store.importVoice(it) }; refresh }
             "wav-imported" -> fromInbox(context) { source ->
                 val (key, _) = stageWav(source)
-                PluginOutcome.TextInput("语音包名称", "voice-name/$key", "我的声音")
+                PluginOutcome.TextInput(copy("voice.pack_name", "语音包名称"), "voice-name/$key", copy("voice.default_name", "我的声音"))
             }
             "voice-name" -> {
-                require(value.trim().length in 1..80) { "名称需要 1–80 个字符" }
+                require(value.trim().length in 1..80) { throw CloneMessageException("voice.name_limit", "名称需要 1–80 个字符") }
                 atomicText(File(draft(id), "name.txt"), value.trim())
-                PluginOutcome.TextInput("请输入与参考音频逐字匹配的文本", "voice-text/$id", multiline = true)
+                PluginOutcome.TextInput(copy("voice.enter_transcript", "请输入与参考音频逐字匹配的文本"), "voice-text/$id", multiline = true)
             }
             "voice-text" -> {
                 val pending = draft(id)
@@ -38,9 +38,9 @@ internal class CloneVoiceActions(
             }
             "edit" -> PluginOutcome.OpenPage("voice/${store.resolve(id).id}")
             "select" -> { store.selected = id; refresh }
-            "rename" -> editText(id, "名称", "renamed", CloneVoice::name)
+            "rename" -> editText(id, copy("voice.name", "名称"), "renamed", CloneVoice::name)
             "renamed" -> { store.rename(id, value); refresh }
-            "remark" -> editText(id, "备注", "remark-saved", CloneVoice::remark, multiline = true)
+            "remark" -> editText(id, copy("voice.remark", "备注"), "remark-saved", CloneVoice::remark, multiline = true)
             "remark-saved" -> { metadata(id) { it.copy(remark = value) }; refresh }
             "pin" -> {
                 val checked = context.inputs["checked"]?.toBooleanStrictOrNull()
@@ -49,25 +49,25 @@ internal class CloneVoiceActions(
             }
             "language" -> {
                 store.resolve(id)
-                PluginOutcome.Menu("参考声音语言", listOf(
-                    PageAction("language-zh/$id", "中文", PluginIcon.TEXT),
-                    PageAction("language-en/$id", "英文", PluginIcon.TEXT)))
+                PluginOutcome.Menu(copy("voice.reference_language", "参考声音语言"), listOf(
+                    PageAction("language-zh/$id", copy("voice.zh", "中文"), PluginIcon.TEXT),
+                    PageAction("language-en/$id", copy("voice.en", "英文"), PluginIcon.TEXT)))
             }
             "language-zh", "language-en" -> {
                 store.editReference(id, language = if (action.startsWith("language-zh/")) "zh-CN" else "en-US")
                 refresh
             }
-            "transcript" -> editText(id, "参考文本", "transcript-saved", CloneVoice::referenceText, multiline = true)
+            "transcript" -> editText(id, copy("voice.transcript", "参考文本"), "transcript-saved", CloneVoice::referenceText, multiline = true)
             "transcript-saved" -> { store.editReference(id, text = value); refresh }
             "reference" -> {
                 store.resolve(id)
-                PluginOutcome.ImportResource("选择新的参考 WAV", inbox, "reference-picked/$id", mimeTypes = wavTypes)
+                PluginOutcome.ImportResource(copy("voice.new_wav", "选择新的参考 WAV"), inbox, "reference-picked/$id", mimeTypes = wavTypes)
             }
             "reference-picked" -> fromInbox(context) { source ->
                 val voice = store.resolve(id)
                 val (key, directory) = stageWav(source)
                 atomicText(File(directory, "target.txt"), voice.id)
-                PluginOutcome.TextInput("确认新录音对应的参考文本", "reference-saved/$key", voice.referenceText, multiline = true)
+                PluginOutcome.TextInput(copy("voice.confirm_transcript", "确认新录音对应的参考文本"), "reference-saved/$key", voice.referenceText, multiline = true)
             }
             "reference-saved" -> {
                 val pending = draft(id)
@@ -77,21 +77,21 @@ internal class CloneVoiceActions(
             }
             "avatar" -> {
                 store.resolve(id)
-                PluginOutcome.ImportResource("设置语音包头像", inbox, "avatar-saved/$id",
+                PluginOutcome.ImportResource(copy("voice.avatar_select", "设置语音包头像"), inbox, "avatar-saved/$id",
                     mimeTypes = listOf("image/png", "image/jpeg", "image/webp"))
             }
             "avatar-saved" -> { fromInbox(context) { store.setAvatar(id, it) }; refresh }
             "avatar-remove" -> { store.setAvatar(id, null); refresh }
             "share" -> {
                 store.resolve(id)
-                PluginOutcome.Confirm("分享语音包", "包含参考录音、文字和已设置的头像。只分享你有权分享的声音。",
-                    PageAction("share-confirmed/$id", "继续分享", PluginIcon.EXPORT))
+                PluginOutcome.Confirm(copy("voice.share", "分享语音包"), copy("voice.share_body", "包含参考录音、文字和已设置的头像。只分享你有权分享的声音。"),
+                    PageAction("share-confirmed/$id", copy("voice.share_confirm", "继续分享"), PluginIcon.EXPORT), cancelLabel = copy("voice.cancel", "取消"))
             }
             "share-confirmed" -> exportVoicePack(store.storage, store.resolve(id)).let { share(it.path, it.name) }
             "delete" -> {
                 val voice = store.resolve(id)
-                PluginOutcome.Confirm("删除语音包", "删除 ${voice.name} 及包内的参考录音和头像？",
-                    PageAction("deleted/$id", "删除", PluginIcon.CLOSE))
+                PluginOutcome.Confirm(copy("voice.delete", "删除语音包"), copy("voice.delete_body", "删除 {name} 及包内的参考录音和头像？", "name" to voice.name),
+                    PageAction("deleted/$id", copy("voice.remove", "删除"), PluginIcon.CLOSE), cancelLabel = copy("voice.cancel", "取消"))
             }
             "deleted" -> { store.delete(id); PluginOutcome.OpenPage("settings") }
             else -> null
@@ -122,6 +122,6 @@ internal class CloneVoiceActions(
 
     private fun draft(id: String): File {
         require(id.matches(Regex("[a-f0-9-]{36}")))
-        return store.storage.file("tmp/draft-$id").also { require(it.isDirectory) { "参考声音草稿已失效，请重新添加" } }
+        return store.storage.file("tmp/draft-$id").also { require(it.isDirectory) { throw CloneMessageException("voice.draft_expired", "参考声音草稿已失效，请重新添加") } }
     }
 }

@@ -25,7 +25,11 @@ interface CloneRuntime : AutoCloseable {
 abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
     override val descriptor = PluginDescriptor("engine.${kind.key}-clone",
         if (kind == CloneKind.ZIPVOICE) "语音克隆引擎" else "${kind.title} 离线克隆",
-        "离线合成与语音包管理", version = if (kind == CloneKind.ZIPVOICE) "0.3.6" else "0.1.4", license = "MIT")
+        "离线合成与语音包管理", version = if (kind == CloneKind.ZIPVOICE) "0.3.7" else "0.1.4", license = "MIT")
+    override val localization = PluginLocalization("zh-CN", listOf("zh-CN", "en", "ko", "ja"))
+    private var strings = PluginStrings(emptyMap())
+    private fun copyFor(locale: String) = CloneCopy(strings, locale)
+
     protected lateinit var environment: PluginEnvironment
     private lateinit var store: CloneStore
     private lateinit var voiceActions: CloneVoiceActions
@@ -50,7 +54,7 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
     protected abstract fun openRuntime(directory: File, options: CloneOptions): CloneRuntime
     protected open fun normalizeAvatar(source: File, destination: File) = copyVoiceAvatar(source,destination)
     protected open fun shareVoiceZip(path: String, name: String): PluginOutcome =
-        ExportedVoice(path,name).outcome(descriptor.id)
+        ExportedVoice(path,name).outcome(descriptor.id, copyFor(environment.locale))
 
     private fun normalOptions(threads: Int): CloneOptions {
         val buffered = kind == CloneKind.QWEN3 && environment.storage.file("config/playback.txt").let { !it.isFile || it.readText().trim() != "stream" }
@@ -77,6 +81,7 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
 
     override suspend fun attach(environment: PluginEnvironment) {
         this.environment = environment
+        strings = PluginStrings.fromAssets(environment.assets)
         val bundled = if (kind == CloneKind.ZIPVOICE) File(environment.assets, "default-model") else null
         store = CloneStore(environment.storage, kind, ::normalizeAvatar, bundledModel = bundled)
         voiceActions = CloneVoiceActions(store, ::shareVoiceZip)
@@ -93,13 +98,14 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
     private fun modelPlan() = ModelPlan(store.modelDirectory, store.modelSource, options, runtimeRevision)
 
     private fun acquire(plan: ModelPlan): CloneRuntime {
-        check(!closed) { "插件已关闭" }
+        val copy = copyFor(environment.locale)
+        check(!closed) { copy("engine.closed", "引擎已关闭") }
         idle?.cancel(); idle = null
-        if (plan.source == null) throw EngineException(EngineError.NOT_CONFIGURED, "模型资源缺失，请重新安装引擎")
+        if (plan.source == null) throw EngineException(EngineError.NOT_CONFIGURED, copy("engine.model_missing", "模型资源缺失，请重新安装引擎"))
         if (modelKey != plan.key) release()
         return model ?: try { openRuntime(plan.directory, plan.options).also { model = it; modelKey = plan.key } }
-        catch (e: LinkageError) { throw EngineException(EngineError.INITIALIZATION, "本地运行库加载失败；需要 arm64-v8a 设备", e) }
-        catch (e: Exception) { throw EngineException(EngineError.INITIALIZATION, "模型加载失败：${e.message}", e) }
+        catch (e: LinkageError) { throw EngineException(EngineError.INITIALIZATION, copy("engine.native_failed", "本地运行库加载失败，需要 arm64-v8a 设备"), e) }
+        catch (e: Exception) { throw EngineException(EngineError.INITIALIZATION, copy("engine.model_failed", "模型加载失败"), e) }
     }
     private fun release() { idle?.cancel(); idle = null; model?.close(); model = null; modelKey = null }
     private fun scheduleRelease() {
@@ -207,7 +213,7 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                 catch (e: Exception) {
                     failure = e.message.orEmpty()
                     release(); requestJob.ensureActive()
-                    throw EngineException(EngineError.INFERENCE, "${kind.title} 合成失败：${e.message}", e)
+                    throw EngineException(EngineError.INFERENCE, copyFor(environment.locale)("engine.synthesis_failed", "语音合成失败"), e)
                 } finally {
                     trim?.close()
                     spool?.close()
@@ -273,6 +279,7 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
     }
     override val voiceManager = object : VoiceManager {
         override suspend fun command(command: VoiceCommand): PluginOutcome = withContext(Dispatchers.IO) {
+            val copy = copyFor(environment.locale)
             try { edit {
                 val target=command.packId ?: command.voiceId
                 when (command.operation) {
@@ -285,49 +292,58 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                     VoiceOperation.RENAME -> store.rename(requireNotNull(target), requireNotNull(command.value))
                     VoiceOperation.UPDATE_METADATA -> store.updateMetadata(requireNotNull(target),requireNotNull(command.metadata))
                     VoiceOperation.SET_AVATAR -> store.setAvatar(requireNotNull(target),command.resourcePath?.let(environment.storage::file))
-                    VoiceOperation.EXPORT -> return@edit exportVoicePack(environment.storage,store.resolve(target)).outcome(descriptor.id)
+                    VoiceOperation.EXPORT -> return@edit exportVoicePack(environment.storage,store.resolve(target)).outcome(descriptor.id, copyFor(environment.locale))
                     VoiceOperation.REFRESH -> Unit
-                    else -> return@edit PluginOutcome.Message("此语音包不支持该操作")
+                    else -> return@edit PluginOutcome.Message(copy("voice.unsupported", "此语音包不支持该操作"))
                 }
                 PluginOutcome.RefreshUi
             } } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { PluginOutcome.Message(e.message ?: "语音包操作失败") }
+            catch (e: Exception) { PluginOutcome.Message(copy.error(e, "voice.operation_failed", "语音包操作失败")) }
         }
     }
-    override val contributions = PluginContributions(drawerEntries = listOf(
-        DrawerEntry("settings", descriptor.name, "settings", PluginIcon.SPEAKER, settingsPage = true)))
+    override val contributions
+        get() = contributionsFor(if (::environment.isInitialized) environment.locale else "zh-CN")
+
+    override fun contributions(context: PluginContext) = contributionsFor(context.locale)
+
+    private fun contributionsFor(locale: String) = PluginContributions(drawerEntries = listOf(
+            DrawerEntry("settings", if (kind == CloneKind.ZIPVOICE) copyFor(locale)("engine.name", descriptor.name) else descriptor.name,
+                "settings", PluginIcon.SPEAKER, settingsPage = true)))
     override fun page(pageId: String, context: PluginContext): PluginPage? {
         if (!::store.isInitialized) return null
-        if (pageId == "settings") return cloneVoicePage(descriptor.name, store, options, quality?.prebakeSteps)
+        val copy = copyFor(context.locale)
+        val title = if (kind == CloneKind.ZIPVOICE) copy("engine.name", descriptor.name) else descriptor.name
+        if (pageId == "settings") return cloneVoicePage(title, store, options, quality?.prebakeSteps, copy)
         if (pageId.startsWith("voice/")) return runCatching {
-            cloneVoiceDetail(store, store.resolve(pageId.substringAfter('/')))
+            cloneVoiceDetail(store, store.resolve(pageId.substringAfter('/')), copy)
         }.getOrNull()
         return null
     }
 
     override suspend fun execute(actionId: String, context: PluginContext): PluginOutcome = withContext(Dispatchers.IO) {
-        if (actionId == "benchmark-status") return@withContext PluginOutcome.Dialog("异步自检", environment.storage.file("tmp/benchmark-result.json").let { if (it.isFile) it.readText().take(48_000) else "{}" })
-        if (actionId == "benchmark-cancel") { benchmarkJob?.cancel(); return@withContext PluginOutcome.Message("已请求停止自检，原生状态将在下一回调安全释放") }
+        val copy = copyFor(context.locale)
+        if (actionId == "benchmark-status") return@withContext PluginOutcome.Dialog(copy("diagnostics.status", "异步自检"), environment.storage.file("tmp/benchmark-result.json").let { if (it.isFile) it.readText().take(48_000) else "{}" })
+        if (actionId == "benchmark-cancel") { benchmarkJob?.cancel(); return@withContext PluginOutcome.Message(copy("diagnostics.cancel", "已请求停止自检，原生状态将在下一回调安全释放")) }
         try {
             if (actionId == "release" || actionId == "prepare") return@withContext access.withLock {
                 if (actionId == "release") {
                     release()
-                    PluginOutcome.Message("模型内存已释放")
+                    PluginOutcome.Message(copy("diagnostics.released", "模型内存已释放"))
                 } else {
                     val started = System.nanoTime()
                     acquire(state.withLock { modelPlan() }); scheduleRelease()
-                    PluginOutcome.Dialog("预热计时", buildJsonObject { put("modelAcquireMs", (System.nanoTime() - started) / 1_000_000.0) }.toString())
+                    PluginOutcome.Dialog(copy("diagnostics.warmup", "预热计时"), buildJsonObject { put("modelAcquireMs", (System.nanoTime() - started) / 1_000_000.0) }.toString())
                 }
             }
             edit {
-                voiceActions.execute(actionId, context)?.let { return@edit it }
+                voiceActions.execute(actionId, context, copy)?.let { return@edit it }
                 val value = context.inputs["value"].orEmpty()
                 when {
                     kind == CloneKind.QWEN3 && actionId == "import-model" -> PluginOutcome.ImportResource("导入 ${kind.title} 模型 ZIP", "imports/voice-clone-inbox", "model-imported", mimeTypes = listOf("application/zip", "application/octet-stream"))
                     kind == CloneKind.QWEN3 && actionId == "model-imported" -> {
                         voiceActions.fromInbox(context) { store.importModel(it) }; release(); PluginOutcome.RefreshUi
                     }
-                    actionId == "threads" -> PluginOutcome.TextInput("CPU 线程数（1–8）", "threads-saved", options.threads.toString())
+                    actionId == "threads" -> PluginOutcome.TextInput(copy("diagnostics.threads", "CPU 线程数（1–8）"), "threads-saved", options.threads.toString())
                     actionId == "threads-saved" -> {
                         val count = synthesisSliderValue(value)
                         if (count != options.threads) {
@@ -353,13 +369,13 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                         requireNotNull(quality).save(TtsProfile.PREBAKE, steps)
                         PluginOutcome.RefreshUi
                     }
-                    actionId == "diagnostics" -> PluginOutcome.Dialog("性能诊断", environment.storage.file("tmp/last-profile.json").let {
+                    actionId == "diagnostics" -> PluginOutcome.Dialog(copy("diagnostics.performance", "性能诊断"), environment.storage.file("tmp/last-profile.json").let {
                         if (it.isFile) it.readText().take(48_000) else "{}"
                     })
-                    actionId == "last-result" -> PluginOutcome.Dialog("上次合成诊断", environment.storage.file("tmp/last-result.json").let {
-                        if (it.isFile) it.readText() else "暂无记录，请先朗读一段文本。"
+                    actionId == "last-result" -> PluginOutcome.Dialog(copy("diagnostics.last", "上次合成诊断"), environment.storage.file("tmp/last-result.json").let {
+                        if (it.isFile) it.readText() else copy("diagnostics.empty", "暂无记录，请先朗读一段文本。")
                     })
-                    actionId == "model-status" -> PluginOutcome.Dialog("资源状态", buildJsonObject {
+                    actionId == "model-status" -> PluginOutcome.Dialog(copy("diagnostics.resources", "资源状态"), buildJsonObject {
                         put("modelReady", store.modelReady())
                         store.modelSource?.let { put("modelSource", it.id) }
                         if (store.modelReady()) put("modelManifestSha256", sha256(File(store.modelDirectory, "model.json")))
@@ -369,13 +385,13 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                         } }))
                     }.toString())
                     actionId == "benchmark-clear-reference" -> {
-                        require(profile) { "请先显式启用诊断配置" }
+                        require(profile) { copy("diagnostics.enable_first", "请先显式启用诊断配置") }
                         val voice = store.resolve(context.inputs["voiceId"])
                         voice.directory.listFiles()?.filter { it.name.matches(Regex("speaker-[a-f0-9]{24}\\.json")) }?.forEach { check(it.delete()) }
-                        PluginOutcome.Message("已清理所选声音的派生特征缓存，参考音频和文本保留")
+                        PluginOutcome.Message(copy("diagnostics.cache_cleared", "已清理所选声音的派生特征缓存，参考音频和文本保留"))
                     }
                     actionId == "benchmark-config" -> {
-                        require(benchmarkJob?.isActive != true) { "请先停止自检" }
+                        require(benchmarkJob?.isActive != true) { copy("diagnostics.stop_first", "请先停止自检") }
                         val path = requireNotNull(context.inputs["resourcePath"])
                         require(path.startsWith("imports/")) { "诊断配置需通过本插件 imports 导入" }
                         val values = environment.storage.file(path).readObject()
@@ -385,13 +401,13 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                         PluginOutcome.RefreshUi
                     }
                     actionId == "benchmark-disable" -> {
-                        require(benchmarkJob?.isActive != true) { "请先停止自检" }
+                        require(benchmarkJob?.isActive != true) { copy("diagnostics.stop_first", "请先停止自检") }
                         runtimeRevision++; profile = false; options = normalOptions(options.threads)
                         environment.storage.file("config/benchmark.json").delete()
-                        PluginOutcome.Message("诊断捕获已关闭")
+                        PluginOutcome.Message(copy("diagnostics.off", "诊断捕获已关闭"))
                     }
                     actionId == "benchmark" -> {
-                        require(profile) { "请先显式启用诊断配置" }
+                        require(profile) { copy("diagnostics.enable_first", "请先显式启用诊断配置") }
                         require(benchmarkJob?.isActive != true) { "自检仍在运行，请查询 benchmark-status" }
                         val text = context.inputs["text"] ?: "你好，欢迎使用离线语音克隆。"
                         require(text.isNotBlank() && text.length <= 500)
@@ -439,12 +455,12 @@ abstract class ClonePlugin(private val kind: CloneKind) : KigPlugin {
                                 }.toString())
                             }
                         }
-                        PluginOutcome.Dialog("异步自检已启动", buildJsonObject { put("runId", runId); put("status", "running") }.toString())
+                        PluginOutcome.Dialog(copy("diagnostics.started", "异步自检已启动"), buildJsonObject { put("runId", runId); put("status", "running") }.toString())
                     }
-                    else -> PluginOutcome.Message("请打开插件设置")
+                    else -> PluginOutcome.Message(copy("diagnostics.open", "请打开插件设置"))
                 }
             }
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { PluginOutcome.Message(e.message ?: "操作失败，请检查导入文件") }
+        catch (e: Exception) { PluginOutcome.Message(copy.error(e, "voice.import_failed", "操作失败，请检查导入文件")) }
     }
 }

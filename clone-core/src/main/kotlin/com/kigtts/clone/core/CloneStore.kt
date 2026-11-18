@@ -110,12 +110,12 @@ class CloneStore(val storage: PluginStorage, val kind: CloneKind,
         try {
             extractZip(source, stage, 6L * 1024 * 1024)
             require(stage.listFiles().orEmpty().all { it.isFile && it.name in setOf("voice.json", "reference.wav", AVATAR_FILE) }) {
-                "语音包只能包含说明、参考音频和头像"
+                throw CloneMessageException("voice.pack_contents", "语音包只能包含说明、参考音频和头像")
             }
             val metadata = File(stage, "voice.json")
-            require(metadata.isFile && metadata.length() in 2..16*1024L) { "缺少有效的语音包说明" }
+            require(metadata.isFile && metadata.length() in 2..16*1024L) { throw CloneMessageException("voice.pack_metadata", "缺少有效的语音包说明") }
             val data = metadata.readObject()
-            require("formatVersion" !in data || data["formatVersion"]?.jsonPrimitive?.intOrNull == 1) { "不支持此语音包版本" }
+            require("formatVersion" !in data || data["formatVersion"]?.jsonPrimitive?.intOrNull == 1) { throw CloneMessageException("voice.pack_version", "不支持此语音包版本") }
             val old = replaceId?.let(::resolve)
             return saveVoice(File(stage, "reference.wav"), old?.name ?: data.string("name"), data.string("referenceText"),
                 data.string("language", "zh-CN"), old?.avatar ?: File(stage, AVATAR_FILE).takeIf { it.isFile },
@@ -133,8 +133,8 @@ class CloneStore(val storage: PluginStorage, val kind: CloneKind,
         val voice = resolve(id)
         val updatedText = text?.trim() ?: voice.referenceText
         val updatedLanguage = language?.trim() ?: voice.language
-        require(updatedText.length in 1..2000) { "参考文本需要 1–2000 个字符" }
-        require(updatedLanguage in setOf("zh-CN", "en-US") || updatedLanguage == voice.language) { "请选择中文或英文" }
+        require(updatedText.length in 1..2000) { throw CloneMessageException("voice.transcript_limit", "参考文本需要 1–2000 个字符") }
+        require(updatedLanguage in setOf("zh-CN", "en-US") || updatedLanguage == voice.language) { throw CloneMessageException("voice.language_limit", "请选择中文或英文") }
         if (updatedText == voice.referenceText && updatedLanguage == voice.language) return
         val file = File(voice.directory, "voice.json")
         atomicText(file, JsonObject(file.readObject().toMutableMap().apply {
@@ -147,7 +147,7 @@ class CloneStore(val storage: PluginStorage, val kind: CloneKind,
     private fun saveVoice(wav: File, name: String, text: String, language: String,
                           avatar: File?, remark: String, old: CloneVoice?): CloneVoice {
         require(name.trim().length in 1..80 && text.trim().length in 1..2000 &&
-            language.length in 2..32 && remark.length <= 500) { "语音包资料无效" }
+            language.length in 2..32 && remark.length <= 500) { throw CloneMessageException("voice.pack_invalid", "语音包资料无效") }
         Wav.read(wav)
         val id = old?.id ?: UUID.randomUUID().toString()
         val stage = File(voicesDirectory, ".${UUID.randomUUID()}").also { check(it.mkdir()) }
@@ -172,7 +172,7 @@ class CloneStore(val storage: PluginStorage, val kind: CloneKind,
     fun setAvatar(id: String, source: File?) = replaceVoiceAvatar(resolve(id),source,normalizeAvatar)
 
     fun updateMetadata(id: String, metadata: VoicePackMetadata) {
-        require(metadata.name.trim().length in 1..80 && metadata.remark.length <= 500) { "名称或备注过长" }
+        require(metadata.name.trim().length in 1..80 && metadata.remark.length <= 500) { throw CloneMessageException("voice.metadata_limit", "名称或备注过长") }
         val file=File(resolve(id).directory,"voice.json")
         val fields=file.readObject().toMutableMap()
         fields["name"]=JsonPrimitive(metadata.name.trim()); fields["remark"]=JsonPrimitive(metadata.remark.trim())
@@ -187,7 +187,7 @@ class CloneStore(val storage: PluginStorage, val kind: CloneKind,
         if (selection.isFile && selection.readText().trim() == id) selection.delete()
     }
     fun rename(id: String, name: String) {
-        require(name.trim().length in 1..80) { "声音名称需要 1–80 个字符" }
+        require(name.trim().length in 1..80) { throw CloneMessageException("voice.name_limit", "名称需要 1–80 个字符") }
         val file = File(resolve(id).directory, "voice.json")
         atomicText(file, JsonObject(file.readObject().toMutableMap().also { it["name"] = JsonPrimitive(name.trim()) }).toString())
     }

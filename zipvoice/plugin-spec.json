@@ -1,8 +1,8 @@
 {
   "id": "engine.zipvoice-clone",
   "name": "语音克隆引擎",
-  "version": "0.3.6",
-  "versionCode": 17,
+  "version": "0.3.7",
+  "versionCode": 18,
   "entryClass": "com.kigtts.clone.zipvoice.ZipVoicePlugin",
   "apiVersion": 35,
   "minSdk": 26,

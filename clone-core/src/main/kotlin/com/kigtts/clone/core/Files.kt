@@ -20,12 +20,12 @@ internal fun atomicText(file: File, text: String) {
     catch (_: java.nio.file.AtomicMoveNotSupportedException) { Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING) }
 }
 internal fun child(root: File, path: String): File {
-    require(path.isNotBlank() && path.length <= 240 && !path.contains('\\') && !path.contains(':') && !path.contains('\u0000')) { "资源路径无效" }
-    require(path.split('/').none { it == ".." || it == "." || it.isEmpty() }) { "资源路径无效" }
-    return File(root, path).canonicalFile.also { require(it.toPath().startsWith(root.canonicalFile.toPath())) { "资源路径越界" } }
+    require(path.isNotBlank() && path.length <= 240 && !path.contains('\\') && !path.contains(':') && !path.contains('\u0000')) { throw CloneMessageException("resource.path_invalid", "资源路径无效") }
+    require(path.split('/').none { it == ".." || it == "." || it.isEmpty() }) { throw CloneMessageException("resource.path_invalid", "资源路径无效") }
+    return File(root, path).canonicalFile.also { require(it.toPath().startsWith(root.canonicalFile.toPath())) { throw CloneMessageException("resource.outside", "资源路径越界") } }
 }
 internal suspend fun extractZip(source: File, target: File, limit: Long = 4L * 1024 * 1024 * 1024) {
-    require(source.isFile) { "请选择 ZIP 文件" }
+    require(source.isFile) { throw CloneMessageException("zip.required", "请选择 ZIP 文件") }
     target.mkdirs()
     val names = mutableSetOf<String>()
     var total = 0L
@@ -34,10 +34,10 @@ internal suspend fun extractZip(source: File, target: File, limit: Long = 4L * 1
         while (true) {
             currentCoroutineContext().ensureActive()
             val entry = zip.nextEntry ?: break
-            require(++entries <= 20_000) { "ZIP 文件数量过多" }
+            require(++entries <= 20_000) { throw CloneMessageException("zip.too_many", "ZIP 文件数量过多") }
             val name = entry.name.trimEnd('/')
             val file = child(target, name)
-            require(names.add(name.lowercase(java.util.Locale.ROOT))) { "ZIP 包含重名文件" }
+            require(names.add(name.lowercase(java.util.Locale.ROOT))) { throw CloneMessageException("zip.duplicate", "ZIP 包含重名文件") }
             if (entry.isDirectory) file.mkdirs() else {
                 file.parentFile.mkdirs()
                 file.outputStream().buffered().use { output ->
@@ -47,7 +47,7 @@ internal suspend fun extractZip(source: File, target: File, limit: Long = 4L * 1
                         val count = zip.read(buffer)
                         if (count < 0) break
                         total += count
-                        require(total <= limit) { "解压资源超出大小限制" }
+                        require(total <= limit) { throw CloneMessageException("zip.size", "解压资源超出大小限制") }
                         output.write(buffer, 0, count)
                     }
                 }
@@ -55,15 +55,15 @@ internal suspend fun extractZip(source: File, target: File, limit: Long = 4L * 1
             zip.closeEntry()
         }
     }
-    require(entries > 0) { "ZIP 为空" }
+    require(entries > 0) { throw CloneMessageException("zip.empty", "ZIP 为空") }
 }
 internal fun replaceDirectory(staged: File, destination: File) {
     val backup = File(destination.parentFile, destination.name + ".previous")
-    require(!backup.exists()) { "发现未完成的资源更新，请重新加载插件以恢复" }
+    require(!backup.exists()) { throw CloneMessageException("resource.recover", "发现未完成的资源更新，请重新加载插件以恢复") }
     if (destination.exists()) check(destination.renameTo(backup)) { "无法保留旧资源" }
     if (!staged.renameTo(destination)) {
         if (backup.exists()) check(backup.renameTo(destination))
-        error("无法提交资源，旧资源已保留")
+        throw CloneMessageException("resource.commit_failed", "无法提交资源，旧资源已保留")
     }
     backup.deleteRecursively()
 }

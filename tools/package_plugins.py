@@ -157,6 +157,7 @@ def build(module, sdk, java, key, force, qualcomm=False, segment_probe=False, cp
             shutil.copy2(ROOT / "qualcomm/artifacts.json", payload / "assets/licenses/QNN-ARTIFACTS.json")
     shutil.copy2(ROOT / "LICENSE", payload / "assets/licenses/PLUGIN-LICENSE.txt")
     shutil.copy2(ROOT / "NOTICE.md", payload / "assets/licenses/NOTICE.md")
+    shutil.copytree(ROOT / "clone-core/src/main/plugin-assets", payload / "assets", dirs_exist_ok=True)
     if module == "zipvoice" and not segment_probe:
         stage_model(ROOT / "test-assets/zipvoice", payload)
     spec["abis"] = ["arm64-v8a"]
